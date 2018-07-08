@@ -137,7 +137,6 @@ public class Debug_loadable_text_section
 			long symbol_record_type = pos.readUInt8();
 			omf.check(symbol_record_type<=symbol_record_len.length, String.format("Unexpectd symbol_record_type=%d at location=%d in module %s", symbol_record_type, pos.pos-1, module.toc.module_name));
 			
-			// TODO ... parse procedure start
 			switch ((int)symbol_record_type) {
 			case 0:
 			case 15:
