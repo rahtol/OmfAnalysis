@@ -37,6 +37,7 @@ public class DebInfoProcedure
 		ebp_offset = pos.readUInt32();
 		length = pos.readUInt32();
 		name = pos.readStr();
+		end_address = start_address + length;
 	}
 
 }

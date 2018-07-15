@@ -8,7 +8,7 @@ public class OmfFile extends BinaryFile
 		public void read (Pos pos) throws Exception
 		{
 			file_type = pos.readUInt8();
-			check (file_header.file_type == 0xb2, String.format("Illegal file_type: %02x",file_header.file_type));
+			check (file_header.file_type == 0xb2, String.format("Illegal file_type: %02x", file_header.file_type));
 		}
 	}
 	
@@ -95,6 +95,15 @@ public class OmfFile extends BinaryFile
 		
 	}
 	
+	byte chksum()
+	{
+		// it looks like the file_header is not included in checksum
+		int sum = 0;
+		for(int i=1; i<image.length;i++)
+			sum += image[i];
+		return (byte) sum;
+	}
+	
 	public void initialize (String path)
 	{
 		try 
@@ -105,7 +114,7 @@ public class OmfFile extends BinaryFile
 			bootloadable_module_header.read(pos);
 			partition_1.read(pos);
 			
-			// TODO check checksum ...
+			check(chksum()==0, String.format("Checksum error in file %s!", path));
 			
 			if (partition_1.table_of_contents.ABSTXT_location < partition_1.table_of_contents.DEBTXT_location)
 			{

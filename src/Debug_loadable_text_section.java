@@ -1,6 +1,10 @@
+import java.util.Iterator;
 import java.util.Map;
+import java.util.Map.Entry;
+import java.util.NavigableMap;
 import java.util.SortedMap;
 import java.util.TreeMap;
+import java.util.Vector;
 
 public class Debug_loadable_text_section 
 {
@@ -59,8 +63,12 @@ public class Debug_loadable_text_section
 	int offs;
 	int len;
 	Table_of_contents table_of_contents;
-	SortedMap<Long,DebInfoModule> modules;
-	SortedMap<Long,DebInfoProcedure> procedures;
+	NavigableMap<Long,DebInfoModule> modulesByAddress;
+	NavigableMap<String,DebInfoModule> modulesByName;
+	NavigableMap<Long,DebInfoProcedure> proceduresByAddress;
+	NavigableMap<String,DebInfoProcedure> proceduresByName;
+	NavigableMap<Long,DebInfoLine> linesByAddress;
+	NavigableMap<DebInfoLine.LineNo,DebInfoLine> linesByNo;
 	
 	Debug_loadable_text_section ()
 	{
@@ -68,8 +76,12 @@ public class Debug_loadable_text_section
 		offs = 0;
 		len = 0;
 		table_of_contents = new Table_of_contents();
-		modules = new TreeMap<Long,DebInfoModule>();
-		procedures = new TreeMap<Long,DebInfoProcedure>();
+		modulesByAddress = new TreeMap<Long,DebInfoModule>();
+		modulesByName = new TreeMap<String,DebInfoModule>();
+		proceduresByAddress = new TreeMap<Long,DebInfoProcedure>();
+		proceduresByName = new TreeMap<String,DebInfoProcedure>();
+		linesByAddress = new TreeMap<Long,DebInfoLine>();
+		linesByNo = new TreeMap<DebInfoLine.LineNo,DebInfoLine>();
 	}
 	
 	long [] debsegLen ()
@@ -97,7 +109,8 @@ public class Debug_loadable_text_section
 				prev_module.set_end_location_offs (omf, cur_module.start_location_offs);
 			}
 			prev_module = cur_module;
-			modules.put(cur_module.start_address, cur_module);
+			modulesByAddress.put(cur_module.start_address, cur_module);
+			modulesByName.put(cur_module.toc.module_name, cur_module);
 //			System.out.printf("%3d %s\n", n, cur_module.toc.module_name);
 		}
 		prev_module.set_end_location_offs (omf, debsegLen());
@@ -149,7 +162,8 @@ public class Debug_loadable_text_section
 				OmfFile.Pos pos2 = omf.new Pos(pos.pos); // use fresh read position as pos will be advanced below for all record types
 				DebInfoProcedure cur_procedure = new DebInfoProcedure (module);
 				cur_procedure.read(omf, pos2, symbol_record_type);
-				procedures.put(cur_procedure.start_address, cur_procedure);
+				proceduresByAddress.put(cur_procedure.start_address, cur_procedure);
+				proceduresByName.put(cur_procedure.name, cur_procedure);
 				break;
 			case 2:
 			case 16:
@@ -172,8 +186,9 @@ public class Debug_loadable_text_section
 		omf.check(pos.pos==end_location, String.format("SYMBOLS: length mismatch for module=%s, pos=%d, offs=%d", module.toc.module_name, pos.pos, end_location));
 	}
 
-	public void read_lines_for_module (DebInfoModule module) throws Exception
+	public Vector<DebInfoLine> read_lines_for_module (DebInfoModule module) throws Exception
 	{
+		Vector<DebInfoLine> veclines = new Vector<DebInfoLine>();
 		long start_location = table_of_contents.debsegLocation(idxLINES) + module.start_location_offs[idxLINES];
 		long end_location = table_of_contents.debsegLocation(idxLINES) + module.end_location_offs[idxLINES];
 		OmfFile.Pos pos = omf.new Pos((int) start_location);
@@ -186,14 +201,21 @@ public class Debug_loadable_text_section
 			omf.check(line_address<module.end_address, String.format("LINES: address not in range for module=%s, pos=%08x, line_address=%08x, last_address=%08x", module.toc.module_name, pos.pos, line_address, module.end_address));
 			omf.warn(line_address>last_line_address, String.format("LINES: not strictly ascending for module=%s, pos=%08x, line_address=%08x, last_line_address=%08x", module.toc.module_name, pos.pos, line_address, last_line_address));
 			last_line_address = line_address;
-			// TODO: do something with (line, last_line_address, line_address)
+			Map.Entry<Long,DebInfoProcedure> procentry = proceduresByAddress.floorEntry(line_address);
+			omf.check(procentry!=null, String.format("LINES: address not in range of a procedure for module=%s, pos=%08x, line_address=%08x", module.toc.module_name, pos.pos, line_address));
+			DebInfoLine lineinfo = new DebInfoLine (line, line_address, procentry.getValue());
+			linesByAddress.put(line_address, lineinfo);
+			veclines.add(lineinfo);
 		}
 		omf.check(pos.pos==end_location, String.format("LINES: length mismatch for module=%s, pos=%d, offs=%d", module.toc.module_name, pos.pos, end_location));
 		module.num_lines = line;
+		return veclines;
 	}
 	
-	public void read_srclines_for_module (DebInfoModule module) throws Exception
+	public void read_srclines_for_module (DebInfoModule module, Vector<DebInfoLine> veclines) throws Exception
 	{
+		final int NLR_FLAG = (1<<31);		 // new line record flag
+		
 		long start_location = table_of_contents.debsegLocation(idxSRCLINES) + module.start_location_offs[idxSRCLINES];
 		long end_location = table_of_contents.debsegLocation(idxSRCLINES) + module.end_location_offs[idxSRCLINES];
 		OmfFile.Pos pos = omf.new Pos((int) start_location);
@@ -206,12 +228,13 @@ public class Debug_loadable_text_section
 			while (pos.pos < end_location)
 			{
 				line++;
-				long start_line_col = pos.readUInt32();
-				if ((start_line_col & (1<<31)) != 0)
+				long start_line_and_column = pos.readUInt32();
+				long end_line_and_column = 0;
+				if ((start_line_and_column & NLR_FLAG) != 0)
 				{
-					long end_line_col = pos.readUInt32();
+					end_line_and_column = pos.readUInt32();
 				}
-				// TODO: do something with (line, line_address)
+				veclines.elementAt(line-1).set_srcline(start_line_and_column, end_line_and_column);
 			}
 		}
 		omf.check(pos.pos==end_location, String.format("SRCLINES: length mismatch for module=%s, pos=%d, offs=%d", module.toc.module_name, pos.pos, end_location));
@@ -220,16 +243,36 @@ public class Debug_loadable_text_section
 		module.num_srclines = line;
 	}
 	
+	private Long get_line_end_address (DebInfoLine lineinfo, Iterator<Entry<Long, DebInfoLine>> li)
+	{
+		Entry<Long, DebInfoLine> e = this.linesByAddress.tailMap(lineinfo.start_address, false).firstEntry();
+		if (e==null)
+			return lineinfo.procedure.end_address;
+		DebInfoLine lineinfo2 = e.getValue();
+		if (lineinfo.procedure == lineinfo2.procedure)
+			return lineinfo2.start_address;
+		else
+			return lineinfo.procedure.end_address;
+	}
+	 
 	public void read_symbols_lines_srclines() throws Exception
 	{
-		for(Map.Entry<Long,DebInfoModule> entry : modules.entrySet())
+		for(Map.Entry<Long,DebInfoModule> entry : modulesByAddress.entrySet())
 		{
 			  DebInfoModule module = entry.getValue();
 			  read_symbols_for_module (module);
-			  read_lines_for_module (module);
-			  read_srclines_for_module (module);
+			  Vector<DebInfoLine> veclines = read_lines_for_module (module);
+			  read_srclines_for_module (module, veclines);
 
 //			  System.out.printf("%08x  %08x  %08x  %s\n", module.start_address, module.end_address, module.block_length, module.toc.module_name);
+		}
+		
+		Iterator<Entry<Long, DebInfoLine>> li = linesByAddress.entrySet().iterator();
+		while (li.hasNext())
+		{
+			DebInfoLine lineinfo = li.next().getValue();
+			lineinfo.set_end_address(get_line_end_address(lineinfo, li));
+			linesByNo.put(new DebInfoLine.LineNo(lineinfo.module, lineinfo.srcline), lineinfo);
 		}
 	}
 	
