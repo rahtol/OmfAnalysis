@@ -1,10 +1,8 @@
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
 import java.io.ByteArrayInputStream;
-import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.FileWriter;
-import java.util.NavigableMap;
 import java.util.Vector;
 
 public class DisassembledListing
