@@ -1,9 +1,11 @@
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
+import java.io.ByteArrayInputStream;
 import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.FileWriter;
 import java.util.NavigableMap;
+import java.util.Vector;
 
 public class DisassembledListing
 {
@@ -18,7 +20,7 @@ public class DisassembledListing
 		this.omf = omf;
 	}
 	
-	static String hexdump (byte data[])
+	static String hexdump (byte data[], int len)
 	{
 		String s="";
 		for (int i=0; i<data.length; i++)
@@ -26,7 +28,18 @@ public class DisassembledListing
 			int d = ((int) data[i]) & 0xff;
 			s += String.format("%02x", d);
 		}
-		return s;
+		return (s + "                         ").substring(0, len);
+	}
+	
+	static String hexdump (Vector<Integer> data, int len)
+	{
+		String s="";
+		for (int i=0; i<data.size(); i++)
+		{
+			int d = ((int) data.get(i)) & 0xff;
+			s += String.format("%02x", d);
+		}
+		return (s + "                         ").substring(0, len);
 	}
 	
 	void transcode (String modulename, String cppfname) throws Exception
@@ -46,7 +59,25 @@ public class DisassembledListing
 			if (l != null)
 			{
 				byte linecode [] = omf.abstxt.getRange(l.start_address, l.end_address);
-				outf.write("---- " + hexdump(linecode) + "\n");
+				long virtualaddress = l.start_address;
+				ByteArrayInputStream stream = new ByteArrayInputStream(linecode);
+				Vector<i386InstructionDecoder> instructions = new Vector<i386InstructionDecoder>();
+				while (stream.available() > 0)
+				{
+					i386InstructionDecoder instruction = new i386InstructionDecoder(virtualaddress, 1, 1);   // assuming 32-bit operand- and address size here
+					instruction.decode(stream);
+					instructions.add(instruction);
+					virtualaddress += instruction.instructionData.size();
+					if(instruction.isJmpOnTableUsingCS() && virtualaddress==instruction.displacement)
+					{
+						// TODO: if jmp cs:[eax*4+x] instruction where x=virtualaddress then break
+						break;
+					}
+				}
+				for (i386InstructionDecoder instruction : instructions)
+				{
+					outf.write("---- " + hexdump(instruction.instructionData, 24) + instruction.toString() + "\n");
+				}
 			}
 		}
 		outf.close();

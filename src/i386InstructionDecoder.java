@@ -1,9 +1,12 @@
-import java.io.IOException;
 import java.io.InputStream;
 import java.util.Vector;
 
 public class i386InstructionDecoder
 {
+	final long virtualaddress; // context information: virtual address where the instruction is located 
+	final int operandSizeDefault;  // context information: operandSize from segment selector
+	final int adressSizeDefault;  // context information: addressSize from segment selector
+	
 	Vector<Integer> instructionData;
 	
 	// instruction layout according to figure 17-1
@@ -26,6 +29,73 @@ public class i386InstructionDecoder
 	int sib;
 	int displacement;
 	int immediate;
+	int segmentOverridePrefix;
+	
+	public final String regs8[] = {
+			"al",
+			"cl",
+			"dl",
+			"bl",
+			"ah",
+			"ch",
+			"dh",
+			"bh",
+	};
+	
+	public final String regs16[] = {
+			"ax",
+			"cx",
+			"dx",
+			"bx",
+			"sp",
+			"bp",
+			"si",
+			"di",
+	};
+	
+	public final String regs32[] = {
+			"eax",
+			"ecx",
+			"edx",
+			"ebx",
+			"esp",
+			"ebp",
+			"esi",
+			"edi",
+	};
+	
+	public final String controlregister[] = {
+			"cr0",
+			"cr?1?",
+			"cr2",
+			"cr3",
+			"cr?4?",
+			"cr?5?",
+			"cr?6?",
+			"cr?7?",
+	};
+	
+	public final String debugregister[] = {
+			"dr0",
+			"dr1",
+			"dr2",
+			"dr3",
+			"dr?4?",
+			"dr?5?",
+			"dr6",
+			"dr7",
+	};
+
+	public final String testregister[] = {
+			"tr?0?",
+			"tr?1?",
+			"tr?2?",
+			"tr?3?",
+			"tr?4?",
+			"tr?5?",
+			"tr6",
+			"tr7",
+	};
 	
 	static boolean isInstructionPrefix (int b)
 	{
@@ -54,8 +124,12 @@ public class i386InstructionDecoder
 				|| (b == 0x65);		// GS
 	}
 
-	i386InstructionDecoder()
+	i386InstructionDecoder(long virtualaddress, int operandSizeDefault, int adressSizeDefault)
 	{
+		this.virtualaddress = virtualaddress;
+		this.operandSizeDefault = operandSizeDefault;
+		this.adressSizeDefault = adressSizeDefault;
+		
 		resetState();
 	}
 	
@@ -66,7 +140,7 @@ public class i386InstructionDecoder
 		adressSizePrefixPresent = 0;
 		operandSizePrefixPresent = 0;
 		segmentOverridePrefixPresent = 0;
-		adressSize = 1;  // defaulting to 32-bit
+		adressSize = operandSizeDefault;
 		operandSize = 1; // defaulting to 32-bit
 		opcodeSize = 0;
 		opcodeMap = null;
@@ -78,6 +152,7 @@ public class i386InstructionDecoder
 		displacement = 0;
 		immediateSize = -1;
 		immediate = 0;
+		segmentOverridePrefix = -1;
 	}
 	
 	public int getUInt8(InputStream is) throws Exception
@@ -161,12 +236,16 @@ public class i386InstructionDecoder
 		else 
 		{
 			// table 17-3: 32-Bit Addressing Forms with the the ModR/M byte applies
-			sibPresent = (mod != 3 && rm == 5 ? 1 : 0);
+			sibPresent = (mod != 3 && rm == 4 ? 1 : 0);
+			int base = 0;
 			if (sibPresent == 1)
+			{
 				sib = getUInt8(is);
+				base = sib & 7;
+			}
 
 			switch (mod) {
-				case 0: if (rm==6) decodeDisplacement(is, 4); break;
+				case 0: if ((rm==5)||(rm==4 && base==5)) decodeDisplacement(is, 4); break;
 				case 1: decodeDisplacement(is, 1); break;
 				case 2: decodeDisplacement(is, 4); break;
 				case 3: /* no displacement */ break;
@@ -182,6 +261,8 @@ public class i386InstructionDecoder
 			displacementSize = (operandSize+1)*2; // 0->2, 1->4;
 		else if (requiresDisplacement==-2)        // -2 = displacement present, adressSize decides between 16-bit and 32-bit
 			displacementSize = (adressSize+1)*2;  // 0->2, 1->4;
+		else if (requiresDisplacement==1)
+			displacementSize = 1;
 		else if (requiresDisplacement==2)
 			displacementSize = 2;
 		else if (requiresDisplacement==4)
@@ -189,7 +270,9 @@ public class i386InstructionDecoder
 		else
 			this.check(false, "Illegal displacementSize.");
 		
-		if (displacementSize == 2)
+		if (displacementSize == 1)
+			displacement = getUInt8(is);
+		else if (displacementSize == 2)
 			displacement = getUInt16(is);
 		else
 			displacement = getUInt32(is);
@@ -202,6 +285,8 @@ public class i386InstructionDecoder
 			immediateSize = (operandSize+1)*2;
 		else if (requiresImmediate==-2)
 			immediateSize = (adressSize+1)*2;
+		else if (requiresImmediate==1)
+			immediateSize = 1;
 		else if (requiresImmediate==2)
 			immediateSize = 2;
 		else if (requiresImmediate==4)
@@ -209,7 +294,9 @@ public class i386InstructionDecoder
 		else
 			this.check(false, "Illegal immediateSize.");
 		
-		if (immediateSize == 2)
+		if (immediateSize == 1)
+			immediate = getUInt8(is);
+		else if (immediateSize == 2)
 			immediate = getUInt16(is);
 		else
 			immediate = getUInt32(is);
@@ -239,6 +326,7 @@ public class i386InstructionDecoder
 		}
 		if (isSegmentOverridePrefix (b)) {
 			segmentOverridePrefixPresent = 1;
+			segmentOverridePrefix = b;
 			b = getUInt8(is);
 		}
 		
@@ -255,93 +343,76 @@ public class i386InstructionDecoder
 			instruction.operands[i].check(this);
 	}
 	
-	public final String regs8[] = {
-			"al",
-			"cl",
-			"dl",
-			"bl",
-			"ah",
-			"ch",
-			"dh",
-			"bh",
-	};
-	
-	public final String regs16[] = {
-			"ax",
-			"cx",
-			"dx",
-			"bx",
-			"sp",
-			"bp",
-			"si",
-			"di",
-	};
-	
-	public final String regs32[] = {
-			"eax",
-			"ecx",
-			"edx",
-			"ebx",
-			"esp",
-			"ebp",
-			"esi",
-			"edi",
-	};
-	
-	public final String controlregister[] = {
-			"cr0",
-			"cr?1?",
-			"cr2",
-			"cr3",
-			"cr?4?",
-			"cr?5?",
-			"cr?6?",
-			"cr?7?",
-	};
-	
-	public final String debugregister[] = {
-			"dr0",
-			"dr1",
-			"dr2",
-			"dr3",
-			"dr?4?",
-			"dr?5?",
-			"dr6",
-			"dr7",
-	};
-
-	public final String testregister[] = {
-			"tr?0?",
-			"tr?1?",
-			"tr?2?",
-			"tr?3?",
-			"tr?4?",
-			"tr?5?",
-			"tr6",
-			"tr7",
-	};
+	private String itoa(long val, int siz, boolean forceSign)
+	{
+		long max = (1L << (siz << 3));
+		long min = max >> 1;
+		String sign = (forceSign ? "+" : "");
+		
+		if (val > min)
+		{
+			sign = "-";
+			val = max - val;
+		}
+		
+		return String.format("%s%d", sign, val);
+	}
 	
 	public String displStr(int displSize)
 	{
-		return String.format("%08x", displacement); // TODO
+		
+		return itoa(displacement, displSize, false);
+	}
+	
+	public String displStr(int displSize, boolean forceSign)
+	{
+		
+		return itoa(displacement, displSize, forceSign);
+	}
+	
+	public String immediateStr(int displSize)
+	{
+		
+		return itoa(immediate, displSize, false);
 	}
 	
 	private String sibStr(int mod)
 	{
 		// precondition for call: sibPresent==1
+		// reference: table 17-4,
+		// base part horizontal, index part vertical, 
+		// displacement added by caller except when mod==0 && base==5
+		
 		int ss = (sib >> 6) & 3;
 		int index = (sib >> 3) & 7;
 		int base = sib & 7;
 
-		String baseStr = (base==5 && mod==0 ? displStr(4) : "[" + regs32[base] + "]");
+		String baseStr = (base==5 && mod==0 ? displStr(4) : regs32[base]);
 
-		String fmt = (index==5 ? "": (ss==0 ? "[%s]" : "[%s*%d]"));
+		String fmt = (index==5 ? "": (ss==0 ? "%s" : "%s*%d"));
 		String indexStr = String.format(fmt, regs32[index], ss*2);
 
-		return baseStr + indexStr;
+		return (base==5 && mod==0 ? indexStr + "+" + baseStr : baseStr + "+" + indexStr);
 	}
 	
-	public String modRMtoEffectiveAddressString (int opsize)
+	public String segmentOverridePrefixStr()
+	{
+		if (segmentOverridePrefixPresent == 0)
+			return "";
+		
+		switch (segmentOverridePrefix) {
+			case 0x2e: return "cs:"; 
+			case 0x36: return "ss:"; 
+			case 0x3e: return "ds:"; 
+			case 0x26: return "es:"; 
+			case 0x64: return "fs:"; 
+			case 0x65: return "gs:";
+		}
+		
+		return "";
+	}
+	
+	public String modRMtoEffectiveAddressStr (int opsize)
 	{
 		String s = null;
 
@@ -352,20 +423,21 @@ public class i386InstructionDecoder
 		{
 			// modrm specifies a register
 			s = (opsize==1 ? regs8[rm] : (opsize==2 ? regs16[rm] : regs32 [rm]));
+			return s; // no brackets and no segment override prefix
 		}
 		else if (this.adressSize==0)
 		{
 			// effective address according to table 17-2
 			
 			final String effregs[] = {
-					"[bx+si]",
-					"[bx+di]",
-					"[bp+si]",
-					"[bd+di]",
-					"[si]",
-					"[di]",
-					"[bp]",
-					"[bx]",
+					"bx+si",
+					"bx+di",
+					"bp+si",
+					"bd+di",
+					"si",
+					"di",
+					"bp",
+					"bx",
 			};
 			
 			switch (mod) {
@@ -373,10 +445,10 @@ public class i386InstructionDecoder
 				s = (rm==6 ? displStr(2) : effregs[rm]);
 				break;
 			case 1:
-				s = String.format("%s[%s]", displStr(1), effregs[rm]); 
+				s = effregs[rm] + displStr(1, true); 
 				break;
 			case 2:
-				s = String.format("%s[%s]", displStr(2), effregs[rm]); 
+				s = effregs[rm] + displStr(2, true); 
 				break;
 			case 3:
 				// already handled above
@@ -385,15 +457,17 @@ public class i386InstructionDecoder
 		}
 		else
 		{
+			// reference: table 17-3
+			
 			switch (mod) {
 			case 0: 
-				s = (rm==6 ? displStr(4) : "") + (rm==5 ? sibStr(mod) : (rm==6 ? "" : regs32[rm]));
+				s = (rm==4 ? sibStr(mod) : (rm==5 ? displStr(4) : regs32[rm]));
 				break;
 			case 1:
-				s = displStr(1) + (rm==5 ? sibStr(mod) : regs32[rm]); 
+				s = (rm==4 ? sibStr(mod) : regs32[rm]) + displStr(1, true); 
 				break;
 			case 2:
-				s = displStr(4) + (rm==5 ? sibStr(mod) : regs32[rm]); 
+				s = (rm==4 ? sibStr(mod) : regs32[rm]) + displStr(4, true); 
 				break;
 			case 3:
 				// already handled above
@@ -401,12 +475,31 @@ public class i386InstructionDecoder
 			}
 		};
 		
-		return s;
+		return segmentOverridePrefixStr() + "[" + s + "]";
 	}
 
 	public String toString()
 	{
-		return this.instruction.toString (this);
+		String s = null;
+		try 
+		{
+			s = this.instruction.toString (this);
+		}
+		catch (Exception e)
+		{
+			e.printStackTrace();
+			s = "? Exception in toString() ?";
+		}
+		return s;
 	}
-
+	
+	public boolean isJmpOnTableUsingCS()
+	{
+		// checks for jmp cs:[eax*4+x] for any x
+		return instructionData.size()==8
+				&& instructionData.get(0) == 0x2e
+				&& instructionData.get(1) == 255
+				&& instructionData.get(2) == 36
+				&& instructionData.get(3) == 133;
+	}
 }

@@ -6,21 +6,21 @@ public enum i386Operand
 	{
 		public String toString(i386InstructionDecoder instructionDecoder)
 		{
-			return instructionDecoder.modRMtoEffectiveAddressString(1);
+			return instructionDecoder.modRMtoEffectiveAddressStr(1);
 		}
 	},
 	_Ew(1,0,0)
 	{
 		public String toString(i386InstructionDecoder instructionDecoder)
 		{
-			return instructionDecoder.modRMtoEffectiveAddressString(2);
+			return instructionDecoder.modRMtoEffectiveAddressStr(2);
 		}
 	},
 	_Ev(1,0,0)
 	{
 		public String toString(i386InstructionDecoder instructionDecoder)
 		{
-			return instructionDecoder.modRMtoEffectiveAddressString((instructionDecoder.operandSize==1?2:4));
+			return instructionDecoder.modRMtoEffectiveAddressStr((instructionDecoder.operandSize==1?4:2));
 		}
 	},
 	_Ep(1,0,0)  // used with: CALL JMP
@@ -28,7 +28,7 @@ public enum i386Operand
 		// TODO: register possible ? -> CALL [EAX] also CALL [AX]
 		public String toString(i386InstructionDecoder instructionDecoder)
 		{
-			return instructionDecoder.modRMtoEffectiveAddressString((4)); 
+			return instructionDecoder.modRMtoEffectiveAddressStr((4)); 
 		}
 	},
 	_Gb(1,0,0)
@@ -59,24 +59,96 @@ public enum i386Operand
 	{
 		public String toString(i386InstructionDecoder decoder) throws Exception
 		{
-			return "#" + decoder.immediateStr(1); 
+			return decoder.immediateStr(1); 
 		}
 	},
-	_Iw(0,0,2),
-	_Iv(0,0,-1), // =2 or =4 depending on operandSize
+	_Iw(0,0,2)
+	{
+		public String toString(i386InstructionDecoder decoder) throws Exception
+		{
+			return decoder.immediateStr(2); 
+		}
+	},
+	_Iv(0,0,-1) // =2 or =4 depending on operandSize
+	{
+		public String toString(i386InstructionDecoder decoder) throws Exception
+		{
+			return decoder.immediateStr(decoder.operandSize==0 ? 2 : 4); 
+		}
+	},
 	_Jb(0,1,0)
 	{
 		public String toString(i386InstructionDecoder decoder) throws Exception
 		{
-			return "$" + decoder.displStrForceSign(1); 
+			return "$" + decoder.displStr(1, true); 
 		}
 	},
-	_Jw(0,2,0),
-	_Jv(0,-1,0),
-	_M(1,0,0),  // mod != 3  memory reference only
-	_Mp(1,0,0), // mod != 3  memory reference only  far pointer, i.e. 32 bit or 48 bit depending on operand size
-	_Ma(1,0,0), // mod != 3  memory reference only  pointer to two words or doublewords depending on operand size BOUND
-	_Ms(1,0,0), // mod != 3  memory reference only  pointer to 6 byte pseudo descriptor
+	_Jw(0,2,0)
+	{
+		public String toString(i386InstructionDecoder decoder) throws Exception
+		{
+			return "$" + decoder.displStr(2, true); 
+		}
+	},
+	_Jv(0,-1,0)
+	{
+		public String toString(i386InstructionDecoder decoder) throws Exception
+		{
+			return "$" + decoder.displStr((decoder.adressSize==0 ? 2 : 4), true); 
+		}
+	},
+	_M(1,0,0)  // mod != 3  memory reference only
+	{
+		public void check (i386InstructionDecoder decoder) throws Exception
+		{
+			int mod = decoder.getMod();
+			decoder.check(mod!=3, "_M must not refer to a register.");
+		}
+		
+		public String toString(i386InstructionDecoder decoder) throws Exception
+		{
+			return decoder.modRMtoEffectiveAddressStr((0)); // parameter doesn't matter since mod!=3
+		}
+	},
+	_Mp(1,0,0) // mod != 3  memory reference only  far pointer, i.e. 32 bit or 48 bit depending on operand size
+	{
+		public void check (i386InstructionDecoder decoder) throws Exception
+		{
+			int mod = decoder.getMod();
+			decoder.check(mod!=3, "_M must not refer to a register.");
+		}
+		
+		public String toString(i386InstructionDecoder decoder) throws Exception
+		{
+			return decoder.modRMtoEffectiveAddressStr((0)); // parameter doesn't matter since mod!=3
+		}
+	},
+	_Ma(1,0,0) // mod != 3  memory reference only  pointer to two words or doublewords depending on operand size BOUND
+	{
+		public void check (i386InstructionDecoder decoder) throws Exception
+		{
+			int mod = decoder.getMod();
+			decoder.check(mod!=3, "_M must not refer to a register.");
+		}
+		
+		public String toString(i386InstructionDecoder decoder) throws Exception
+		{
+			return decoder.modRMtoEffectiveAddressStr((0)); // parameter doesn't matter since mod!=3
+		}
+	},
+	_Ms(1,0,0) // mod != 3  memory reference only  pointer to 6 byte pseudo descriptor
+	{
+		public void check (i386InstructionDecoder decoder) throws Exception
+		{
+			int mod = decoder.getMod();
+			decoder.check(mod!=3, "_M must not refer to a register.");
+		}
+		
+		public String toString(i386InstructionDecoder decoder) throws Exception
+		{
+			return decoder.modRMtoEffectiveAddressStr((0)); // parameter doesn't matter since mod!=3
+		}
+	},
 	_Rw(1,0,0)  // mod == 3  register reference only
 	{
 		public void check (i386InstructionDecoder decoder) throws Exception
@@ -239,7 +311,7 @@ public enum i386Operand
 		if(s.startsWith("_e"))
 		{
 			s = s.substring(2);  // remove "_e"
-			s = s + (instructionDecoder.operandSize==2 ? "_" : "_E");
+			s = (instructionDecoder.operandSize==0 ? "_" : "_E") + s;
 		}
 			
 		return s.substring(1).toLowerCase(); // remove leading "_" and convert to lower case

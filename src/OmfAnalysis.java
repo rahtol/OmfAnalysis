@@ -15,7 +15,8 @@ public class OmfAnalysis
 			try
 			{
 				DisassembledListing lst = new DisassembledListing(f);
-				lst.transcode("LTE.CPP", "I:\\work\\opencppcoverage\\OpenCppCoverage-release-0.9.7.0\\OpenCppCoverage-release-0.9.7.0\\omf386symtab\\rttlsrc\\SRC\\lte.cpp");
+//				lst.transcode("LTE.CPP", "I:\\work\\opencppcoverage\\OpenCppCoverage-release-0.9.7.0\\OpenCppCoverage-release-0.9.7.0\\omf386symtab\\rttlsrc\\SRC\\lte.cpp");
+				lst.transcode("LTE.CPP", "U:\\TGMT_WCU_SW\\TRA\\SRC\\lte.cpp");
 				Long t2 = System.currentTimeMillis();
 				System.out.printf ("CPU-time %g ms\n", ((double) (t2-t0))/((double) 1000));
 			} 

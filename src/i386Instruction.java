@@ -42,7 +42,7 @@ public class i386Instruction
 		this.operands = operands;
 	}
 
-	public String toString(i386InstructionDecoder instructionDecoder)
+	public String toString(i386InstructionDecoder instructionDecoder) throws Exception
 	{
 		String s = this.opcode.toString(instructionDecoder);
 		String sep = " ";

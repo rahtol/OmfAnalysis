@@ -204,13 +204,36 @@ public enum i386Opcode
 		{
 			instructionDecoder.decodeModRM(is);
 			int reg = instructionDecoder.getReg();
-			return new i386Instruction((instruction.id<<8)+reg, i386OpcodeMap.__grp4_Opcodes[reg], instruction.operands);
+			return i386OpcodeMap.__grp5_Instructions[reg];
 		}
-		// TODO
 	},
-	__grp6,
-	__grp7,
-	__grp8,
+	__grp6
+	{
+		public i386Instruction decode(i386InstructionDecoder instructionDecoder, InputStream is, i386Instruction instruction) throws Exception
+		{
+			instructionDecoder.decodeModRM(is);
+			int reg = instructionDecoder.getReg();
+			return new i386Instruction((instruction.id<<8)+reg, i386OpcodeMap.__grp6_Opcodes[reg], instruction.operands);
+		}
+	},
+	__grp7
+	{
+		public i386Instruction decode(i386InstructionDecoder instructionDecoder, InputStream is, i386Instruction instruction) throws Exception
+		{
+			instructionDecoder.decodeModRM(is);
+			int reg = instructionDecoder.getReg();
+			return i386OpcodeMap.__grp7_Instructions[reg];
+		}
+	},
+	__grp8
+	{
+		public i386Instruction decode(i386InstructionDecoder instructionDecoder, InputStream is, i386Instruction instruction) throws Exception
+		{
+			instructionDecoder.decodeModRM(is);
+			int reg = instructionDecoder.getReg();
+			return new i386Instruction((instruction.id<<8)+reg, i386OpcodeMap.__grp8_Opcodes[reg], instruction.operands);
+		}
+	},
 	__twoByteEscape
 	{
 		public i386Instruction decode(i386InstructionDecoder instructionDecoder, InputStream is, i386Instruction instruction) throws Exception
@@ -219,7 +242,7 @@ public enum i386Opcode
 			instructionDecoder.opcodeMap = i386OpcodeMap.getTwoByteInstructionMap();
 			int b = instructionDecoder.getUInt8(is);
 			i386Instruction instruction2 = instructionDecoder.opcodeMap.get(b);
-			return instruction.opcode.decode(instructionDecoder, is, instruction2);
+			return instruction2.opcode.decode(instructionDecoder, is, instruction2);
 		}
 	},
 	__invalidOpcode

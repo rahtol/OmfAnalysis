@@ -2,7 +2,7 @@
 public class i386OpcodeMap
 {
 
-	final static i386Instruction oneByteInstructionMap[] =
+	final static i386Instruction _oneByteInstructionMap[] =
 	{
 			new i386Instruction (0x00, i386Opcode._ADD, i386Operand._Eb, i386Operand._Gb),
 			new i386Instruction (0x01, i386Opcode._ADD, i386Operand._Ev, i386Operand._Gv),
@@ -274,11 +274,11 @@ public class i386OpcodeMap
 			new i386Instruction (0xfc, i386Opcode._CLD),
 			new i386Instruction (0xfd, i386Opcode._STD),
 			new i386Instruction (0xfe, i386Opcode.__grp4, i386Operand._Eb),
-			new i386Instruction (0xff, i386Opcode.__grp4, i386Operand._Ev),
+			new i386Instruction (0xff, i386Opcode.__grp5, i386Operand._Ev),
 			
 	};
 
-	final static i386Instruction twoByteInstructionMap[] =
+	final static i386Instruction _twoByteInstructionMap[] =
 	{
 			new i386Instruction (0x0f00, i386Opcode.__grp6),
 			new i386Instruction (0x0f01, i386Opcode.__grp7),
@@ -658,6 +658,9 @@ public class i386OpcodeMap
 	};
 
 	
+	private static i386OpcodeMap oneByteInstructionMap = null;
+	private static i386OpcodeMap twoByteInstructionMap = null;
+
 	i386Instruction opcodeMap[];
 	
 	private i386OpcodeMap (i386Instruction opcodeMap[])
@@ -667,12 +670,18 @@ public class i386OpcodeMap
 	
 	static i386OpcodeMap getOneByteInstructionMap()
 	{
-		return new i386OpcodeMap(oneByteInstructionMap);
+		if (oneByteInstructionMap == null)
+			oneByteInstructionMap = new i386OpcodeMap(_oneByteInstructionMap);
+
+		return oneByteInstructionMap;
 	}
 
 	static i386OpcodeMap getTwoByteInstructionMap()
 	{
-		return null; //
+		if (twoByteInstructionMap == null)
+			twoByteInstructionMap = new i386OpcodeMap(_twoByteInstructionMap);
+
+		return twoByteInstructionMap;
 	}
 	
 	i386Instruction get(int opcode)
