@@ -27,8 +27,8 @@ public class i386InstructionDecoder
 	
 	int modrm; // value
 	int sib;
-	int displacement;
-	int immediate;
+	long displacement;
+	long immediate;
 	int segmentOverridePrefix;
 	
 	public final String regs8[] = {
@@ -62,6 +62,17 @@ public class i386InstructionDecoder
 			"ebp",
 			"esi",
 			"edi",
+	};
+	
+	public final String segmentregister[] = {
+			"es",
+			"cs",
+			"ss",
+			"ds",
+			"fs",
+			"gs",
+			"?6?",
+			"?7?",
 	};
 	
 	public final String controlregister[] = {
@@ -173,7 +184,7 @@ public class i386InstructionDecoder
 		return b0 + 256*b1;
 	}
 
-	public int getUInt32(InputStream is) throws Exception
+	public long getUInt32(InputStream is) throws Exception
 	{
 		int b0 = is.read();
 		int b1 = is.read();
@@ -184,7 +195,7 @@ public class i386InstructionDecoder
 		instructionData.add(b1);
 		instructionData.add(b2);
 		instructionData.add(b3);
-		return b0 + 256*b1 + 65536*b2 + 256*65536*b3;
+		return b0 + 256*b1 + 65536*b2 + 256*65536*(long)b3;
 	}
 
 	void check(boolean b, String errmsg) throws Exception
@@ -223,7 +234,7 @@ public class i386InstructionDecoder
 		int rm = getRm(); 
 		int mod = getMod(); 
 		
-		if (operandSize==0)
+		if (adressSize==0)
 		{
 			// table 17-2: 16-Bit Addressing Forms with the the ModR/M byte applies
 			switch (mod) {
@@ -356,6 +367,13 @@ public class i386InstructionDecoder
 		}
 		
 		return String.format("%s%d", sign, val);
+	}
+	
+	public long get_displacement()
+	{
+		long max = (1L << (displacementSize << 3));
+		long min = max >> 1;
+		return (displacement > min ? -max + displacement : displacement);
 	}
 	
 	public String displStr(int displSize)
@@ -502,4 +520,5 @@ public class i386InstructionDecoder
 				&& instructionData.get(2) == 36
 				&& instructionData.get(3) == 133;
 	}
+
 }

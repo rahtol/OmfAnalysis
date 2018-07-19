@@ -266,13 +266,39 @@ public class Debug_loadable_text_section
 
 //			  System.out.printf("%08x  %08x  %08x  %s\n", module.start_address, module.end_address, module.block_length, module.toc.module_name);
 		}
+
+		// TODO: review the solution below
+		// add a SRCLINE for each procedure (type=14, i.e. with SRCLINE) start address
+		for(Entry<Long, DebInfoProcedure> procedureEntry :proceduresByAddress.entrySet())
+		{
+			DebInfoProcedure procedure = procedureEntry.getValue();
+			if (procedure.symbol_record_type==14)
+			{
+				// makes sense only with valid SRCLINE information
+				DebInfoLine srcline = new DebInfoLine(0, procedure.start_address, procedure);
+				srcline.set_srcline(procedure.start_line_col, 0);
+				
+				DebInfoLine prev = linesByAddress.get(srcline.start_address);
+				if (prev==null)
+					linesByAddress.put(srcline.start_address, srcline);
+//				omf.check(prev==null, String.format("Dupliacte SRCLINE for proc begin: procedure=%s, srcline=%d", procedure.name, srcline.srcline));
+			}
+		}
 		
 		Iterator<Entry<Long, DebInfoLine>> li = linesByAddress.entrySet().iterator();
 		while (li.hasNext())
 		{
 			DebInfoLine lineinfo = li.next().getValue();
 			lineinfo.set_end_address(get_line_end_address(lineinfo, li));
-			linesByNo.put(new DebInfoLine.LineNo(lineinfo.module, lineinfo.srcline), lineinfo);
+			DebInfoLine prev = linesByNo.put(new DebInfoLine.LineNo(lineinfo.module, lineinfo.srcline), lineinfo);
+// TODO: Handle duplicate SRCLINES
+			// way too many warnings below to keep the line 
+			// omf.warn(prev==null, String.format("Duplicate SRCLINE for module=%s, srcline=%d", lineinfo.module.toc.module_name, lineinfo.srcline));
+//			if (prev != null)
+//			{
+//				DebInfoLine prev2 = linesByNo.put(new DebInfoLine.LineNo(lineinfo.module, lineinfo.srcline-1), prev);
+//				omf.warn(prev2==null, String.format("Duplicate SRCLINE for module=%s, srcline=%d", lineinfo.module.toc.module_name, lineinfo.srcline));
+//			}
 		}
 	}
 	

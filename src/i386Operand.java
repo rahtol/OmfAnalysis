@@ -4,23 +4,26 @@ public enum i386Operand
 {
 	_Eb(1,0,0)
 	{
-		public String toString(i386InstructionDecoder instructionDecoder)
+		public String toString(i386InstructionDecoder decoder) throws Exception
 		{
-			return instructionDecoder.modRMtoEffectiveAddressStr(1);
+			int mod = decoder.getMod();
+			return (mod==3 ? "" : "byte ptr ") + decoder.modRMtoEffectiveAddressStr(1);
 		}
 	},
 	_Ew(1,0,0)
 	{
-		public String toString(i386InstructionDecoder instructionDecoder)
+		public String toString(i386InstructionDecoder decoder) throws Exception
 		{
-			return instructionDecoder.modRMtoEffectiveAddressStr(2);
+			int mod = decoder.getMod();
+			return (mod==3 ? "" : "word ptr ") + decoder.modRMtoEffectiveAddressStr(2);
 		}
 	},
 	_Ev(1,0,0)
 	{
-		public String toString(i386InstructionDecoder instructionDecoder)
+		public String toString(i386InstructionDecoder decoder) throws Exception
 		{
-			return instructionDecoder.modRMtoEffectiveAddressStr((instructionDecoder.operandSize==1?4:2));
+			int mod = decoder.getMod();
+			return (mod==3 ? "" : (decoder.operandSize==0 ? "word ptr " : "dword ptr ")) + decoder.modRMtoEffectiveAddressStr((decoder.operandSize==1?4:2));
 		}
 	},
 	_Ep(1,0,0)  // used with: CALL JMP
@@ -80,24 +83,24 @@ public enum i386Operand
 	{
 		public String toString(i386InstructionDecoder decoder) throws Exception
 		{
-			return "$" + decoder.displStr(1, true); 
+			return "$" + decoder.displStr(1, true) + String.format("  (%08x)", decoder.virtualaddress+decoder.instructionData.size()+decoder.get_displacement()); 
 		}
 	},
 	_Jw(0,2,0)
 	{
 		public String toString(i386InstructionDecoder decoder) throws Exception
 		{
-			return "$" + decoder.displStr(2, true); 
+			return "$" + decoder.displStr(2, true) + String.format("  (%08x)", decoder.virtualaddress+decoder.instructionData.size()+decoder.get_displacement()); 
 		}
 	},
 	_Jv(0,-1,0)
 	{
 		public String toString(i386InstructionDecoder decoder) throws Exception
 		{
-			return "$" + decoder.displStr((decoder.adressSize==0 ? 2 : 4), true); 
+			return "$" + decoder.displStr((decoder.adressSize==0 ? 2 : 4), true) + String.format("  (%08x)", decoder.virtualaddress+decoder.instructionData.size()+decoder.get_displacement()); 
 		}
 	},
-	_M(1,0,0)  // mod != 3  memory reference only
+	_M(1,0,0)  // mod != 3  memory reference only, exclusively used in "LEA _Gv, _M"
 	{
 		public void check (i386InstructionDecoder decoder) throws Exception
 		{
@@ -110,7 +113,7 @@ public enum i386Operand
 			return decoder.modRMtoEffectiveAddressStr((0)); // parameter doesn't matter since mod!=3
 		}
 	},
-	_Mp(1,0,0) // mod != 3  memory reference only  far pointer, i.e. 32 bit or 48 bit depending on operand size
+	_Mp(1,0,0) // mod != 3  memory reference only  far pointer, i.e. 32 bit or 48 bit depending on operand size, exclusively used in "L?S, _Gv, _Mp"
 	{
 		public void check (i386InstructionDecoder decoder) throws Exception
 		{
@@ -120,10 +123,10 @@ public enum i386Operand
 		
 		public String toString(i386InstructionDecoder decoder) throws Exception
 		{
-			return decoder.modRMtoEffectiveAddressStr((0)); // parameter doesn't matter since mod!=3
+			return "far ptr " + decoder.modRMtoEffectiveAddressStr((0)); // parameter doesn't matter since mod!=3 
 		}
 	},
-	_Ma(1,0,0) // mod != 3  memory reference only  pointer to two words or doublewords depending on operand size BOUND
+	_Ma(1,0,0) // mod != 3  memory reference only  pointer to two words or doublewords depending on operand size, exclusively used in BOUND
 	{
 		public void check (i386InstructionDecoder decoder) throws Exception
 		{
@@ -133,7 +136,7 @@ public enum i386Operand
 		
 		public String toString(i386InstructionDecoder decoder) throws Exception
 		{
-			return decoder.modRMtoEffectiveAddressStr((0)); // parameter doesn't matter since mod!=3
+			return (decoder.operandSize==1 ? "dword[2] ptr " : "word[2] ptr ") + decoder.modRMtoEffectiveAddressStr((0)); // parameter doesn't matter since mod!=3
 		}
 	},
 	_Ms(1,0,0) // mod != 3  memory reference only  pointer to 6 byte pseudo descriptor
@@ -219,13 +222,26 @@ public enum i386Operand
 			return decoder.testregister[reg]; 
 		}
 	},
-	_Sw(1,0,0),
+	_Sw(1,0,0)
+	{
+		public void check (i386InstructionDecoder decoder) throws Exception
+		{
+			int reg = decoder.getReg();
+			decoder.check(reg<=5, String.format("Illegal segment register specification: %d.", reg));
+		}
+		
+		public String toString(i386InstructionDecoder decoder) throws Exception
+		{
+			int reg = decoder.getReg();
+			return decoder.segmentregister[reg]; 
+		}
+	},
 	_Ap(0,2,-1)  // immediate far address 32 or 48 bit depending on operand size
 	{
 		public String toString(i386InstructionDecoder instructionDecoder)
 		{
 			String fmt = (instructionDecoder.operandSize==2 ? "%04x:%04x" : "%04x:%08x");
-			return String.format(fmt, instructionDecoder.displacement, instructionDecoder.immediate);
+			return "far " + String.format(fmt, instructionDecoder.displacement, instructionDecoder.immediate);
 		}
 	},
 	__Xb, // DS:SI pointer to byte, not displayed

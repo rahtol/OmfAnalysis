@@ -1,8 +1,10 @@
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
 import java.io.ByteArrayInputStream;
+import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.FileWriter;
+import java.util.NavigableMap;
 import java.util.Vector;
 
 public class DisassembledListing
@@ -66,15 +68,17 @@ public class DisassembledListing
 					instruction.decode(stream);
 					instructions.add(instruction);
 					virtualaddress += instruction.instructionData.size();
+					// TODO: the following if is very specialized code:
+					// if jmp cs:[eax*4+x] instruction where x=virtualaddress then break
+					// it accounts for table data in the codesegment (switch-statement, jump-table)
 					if(instruction.isJmpOnTableUsingCS() && virtualaddress==instruction.displacement)
 					{
-						// TODO: if jmp cs:[eax*4+x] instruction where x=virtualaddress then break
 						break;
 					}
 				}
 				for (i386InstructionDecoder instruction : instructions)
 				{
-					outf.write("---- " + hexdump(instruction.instructionData, 24) + instruction.toString() + "\n");
+					outf.write("---- " + String.format("%08x: ", instruction.virtualaddress) + hexdump(instruction.instructionData, 24) + instruction.toString() + "\n");
 				}
 			}
 		}

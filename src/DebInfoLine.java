@@ -43,7 +43,8 @@ public class DebInfoLine
 		this.start_address = start_address;
 		this.procedure = procedure;
 		this.module = procedure.module;
-		end_address = 0; // to be updated later
+		end_address = 0; // to be updated later during set_end_address
+		length = 0; // to be updated later during set_end_address
 	}
 	
 	void set_end_address (long end_address)
