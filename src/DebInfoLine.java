@@ -13,13 +13,22 @@ public class DebInfoLine
 	
 	static class LineNo implements Comparable<LineNo>
 	{
-		long srcline;
-		DebInfoModule module;
+		DebInfoModule module;  // 1st order criteria
+		long srcline;		   // 2nd order criteria
+		long start_address;    // 3rd order criteria
 		
 		LineNo(DebInfoModule module, long srcline)
 		{
 			this.module = module;
 			this.srcline = srcline;
+			this.start_address = -1;
+		}
+
+		LineNo(DebInfoModule module, long srcline, long start_address)
+		{
+			this.module = module;
+			this.srcline = srcline;
+			this.start_address = start_address;
 		}
 
 		@Override
@@ -28,7 +37,10 @@ public class DebInfoLine
 			int result = 0;
 			
 			if (this.module == lineid.module)
-				result = Long.compare(this.srcline, lineid.srcline);
+				if (this.srcline == lineid.srcline)
+					result = Long.compare(this.start_address, lineid.start_address);
+				else
+					result = Long.compare(this.srcline, lineid.srcline);
 			else
 				result = Long.compare(this.module.start_address, lineid.module.start_address);
 						

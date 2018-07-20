@@ -1,30 +1,55 @@
+import java.io.File;
 
 public class OmfAnalysis
 {
 
 	public static void main(String[] args)
 	{
-		Long t0 = System.currentTimeMillis();
-		OmfFile f = new OmfFile ();
-		f.initialize(args[0]);
-		Long t1 = System.currentTimeMillis();
-		System.out.printf ("File size %d Bytes, CPU-time %g ms\n", f.len(), ((double) (t1-t0))/((double) 1000));
-
-		if (f.valid)
+		System.out.println("OmfAnalysis v1.00, 20.07.2018\n");
+		
+		if (args.length != 2)
 		{
-			try
+			System.out.println("Usage: OmfAnalysis <OMF-File> <CPP-Path>\n");
+		}
+		
+		String omfFname = args[0];
+		String cppDir = args[1];
+		
+		Long t0 = System.currentTimeMillis();
+		OmfFile fomf = new OmfFile ();
+		fomf.initialize(omfFname);
+		Long t1 = System.currentTimeMillis();
+
+		if (fomf.valid)
+		{
+			System.out.printf ("OMF-File: %s ok.\nSize=%d Bytes, CPU-time %g ms\n", omfFname, fomf.len(), ((double) (t1-t0))/((double) 1000));
+
+			for (DebInfoModule module : fomf.debtxt.modulesByAddress.values())
 			{
-				DisassembledListing lst = new DisassembledListing(f);
-				lst.transcode("LTE.CPP", "I:\\work\\opencppcoverage\\OpenCppCoverage-release-0.9.7.0\\OpenCppCoverage-release-0.9.7.0\\omf386symtab\\rttlsrc\\SRC\\lte.cpp");
-//				lst.transcode("LTE.CPP", "U:\\TGMT_WCU_SW\\TRA\\SRC\\lte.cpp");
-				Long t2 = System.currentTimeMillis();
-				System.out.printf ("CPU-time %g ms\n", ((double) (t2-t0))/((double) 1000));
-			} 
-			catch (Exception e)
-			{
-				// TODO Auto-generated catch block
-				e.printStackTrace();
+				String cppFname = cppDir + "\\" + module.toc.module_name;
+				File fcpp = new File(cppFname);
+				if (fcpp.exists() && fcpp.isFile())
+				{
+					System.out.printf ("CPP-file=%s, ", module.toc.module_name);
+
+					try
+					{
+						DisassembledListing lst = new DisassembledListing(fomf);
+						lst.transcode(module.toc.module_name, cppFname);
+						t1 = System.currentTimeMillis();
+						System.out.printf ("CPU-time %g ms\n", ((double) (t1-t0))/((double) 1000));
+					} 
+					catch (Exception e)
+					{
+						t1 = System.currentTimeMillis();
+						System.out.printf ("Error.\n");
+						e.printStackTrace(System.out);
+					}
+				}
 			}
+		}
+		else {
+			System.out.printf ("Error reading OMF, fname=%s, CPU-time %g ms\n", omfFname, ((double) (t1-t0))/((double) 1000));
 		}
 	}
 

@@ -209,7 +209,7 @@ public class i386OpcodeMap
 			new i386Instruction (0xbf, i386Opcode._MOV, i386Operand._eDI, i386Operand._Iv),
 
 			new i386Instruction (0xc0, i386Opcode.__grp2, i386Operand._Eb, i386Operand._Ib),
-			new i386Instruction (0xc1, i386Opcode.__grp2, i386Operand._Ev, i386Operand._Iv),
+			new i386Instruction (0xc1, i386Opcode.__grp2, i386Operand._Ev, i386Operand._Ib),
 			new i386Instruction (0xc2, i386Opcode._RET, i386Operand._Iw),
 			new i386Instruction (0xc3, i386Opcode._RET),
 			new i386Instruction (0xc4, i386Opcode._LES, i386Operand._Gv, i386Operand._Mp),

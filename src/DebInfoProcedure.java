@@ -39,7 +39,7 @@ public class DebInfoProcedure
 		type_index = pos.readUInt16();
 		procedure_type = pos.readUInt8();
 		ebp_offset = pos.readUInt32();
-		length = pos.readUInt32()+1; // TODO: "ret" missing in debug information. probably the start address of last instruction is used to determine length 
+		length = pos.readUInt32()+1; // TODO: REVIEW: +1 workaround since "ret" is systematically missing in debug information. probably the start address of last instruction is used to determine length 
 		name = pos.readStr();
 		end_address = start_address + length;
 	}
