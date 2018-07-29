@@ -5,15 +5,18 @@ public class OmfAnalysis
 
 	public static void main(String[] args)
 	{
-		System.out.println("OmfAnalysis v1.00, 20.07.2018\n");
+		System.out.println("OmfAnalysis v1.03, 24.07.2018");
 		
-		if (args.length != 2)
+		if (args.length < 3)
 		{
-			System.out.println("Usage: OmfAnalysis <OMF-File> <CPP-Path>\n");
+			System.out.println("Usage: OmfAnalysis <OMF-File> <code_segment_start_address> <CPP-Path>+\n");
+			return;
 		}
 		
 		String omfFname = args[0];
-		String cppDir = args[1];
+		long code_segment_start_address = Long.parseLong(args[1]);
+		String cppDirs [] = new String [args.length-2];
+		System.arraycopy(args, 2, cppDirs, 0, cppDirs.length);
 		
 		Long t0 = System.currentTimeMillis();
 		OmfFile fomf = new OmfFile ();
@@ -26,24 +29,27 @@ public class OmfAnalysis
 
 			for (DebInfoModule module : fomf.debtxt.modulesByAddress.values())
 			{
-				String cppFname = cppDir + "\\" + module.toc.module_name;
-				File fcpp = new File(cppFname);
-				if (fcpp.exists() && fcpp.isFile())
+				for (String cppDir : cppDirs)
 				{
-					System.out.printf ("CPP-file=%s, ", module.toc.module_name);
-
-					try
+					String cppFname = cppDir + "\\" + module.toc.module_name;
+					File fcpp = new File(cppFname);
+					if (fcpp.exists() && fcpp.isFile())
 					{
-						DisassembledListing lst = new DisassembledListing(fomf);
-						lst.transcode(module.toc.module_name, cppFname);
-						t1 = System.currentTimeMillis();
-						System.out.printf ("CPU-time %g ms\n", ((double) (t1-t0))/((double) 1000));
-					} 
-					catch (Exception e)
-					{
-						t1 = System.currentTimeMillis();
-						System.out.printf ("Error.\n");
-						e.printStackTrace(System.out);
+						System.out.printf ("CPP-file=%s, ", module.toc.module_name);
+	
+						try
+						{
+							DisassembledListing lst = new DisassembledListing(fomf, code_segment_start_address);
+							lst.transcode(module.toc.module_name, cppFname);
+							t1 = System.currentTimeMillis();
+							System.out.printf ("CPU-time %g ms\n", ((double) (t1-t0))/((double) 1000));
+						} 
+						catch (Exception e)
+						{
+							t1 = System.currentTimeMillis();
+							System.out.printf ("Error.\n");
+							e.printStackTrace(System.out);
+						}
 					}
 				}
 			}

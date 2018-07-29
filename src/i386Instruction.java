@@ -1,6 +1,3 @@
-import java.io.IOException;
-import java.io.InputStream;
-
 public class i386Instruction
 {
 	int id;

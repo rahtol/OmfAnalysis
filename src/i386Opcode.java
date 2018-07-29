@@ -51,8 +51,20 @@ public enum i386Opcode
 	_DAS,
 	_AAS,
 	_LEA,
-	_CBW,
-	_CWD,
+	_CBW
+	{
+		public String toString(i386InstructionDecoder decoder)
+		{
+			return (decoder.operandSize==0 ? "cbw" : "cwde");
+		}
+	},
+	_CWD
+	{
+		public String toString(i386InstructionDecoder decoder)
+		{
+			return (decoder.operandSize==0 ? "cwd" : "cdq");
+		}
+	},
 	_CALL,
 	_WAIT,
 	_SAHF,
@@ -258,13 +270,13 @@ public enum i386Opcode
 	{
 	}
 	
-	public i386Instruction decode(i386InstructionDecoder instructionDecoder, InputStream is, i386Instruction instruction) throws Exception
+	public i386Instruction decode(i386InstructionDecoder decoder, InputStream is, i386Instruction instruction) throws Exception
 	{
 		// the default implementation just returns the original instruction
 		return instruction;
 	}
 	
-	public String toString(i386InstructionDecoder instructionDecoder)
+	public String toString(i386InstructionDecoder decoder)
 	{
 		String s = name();
 		
@@ -272,13 +284,13 @@ public enum i386Opcode
 		if(s.endsWith("SWD"))
 		{
 			s = s.substring(0,s.length()-2);  // remove "WD"
-			s = s + (instructionDecoder.operandSize==2 ? "W" : "D");
+			s = s + (decoder.operandSize==0 ? "W" : "D");
 		}
 		
 		return s.substring(1).toLowerCase(); // remove leading "_" and convert to lower case
 	}
 
-	public void check(i386InstructionDecoder instructionDecoder) throws Exception
+	public void check(i386InstructionDecoder decoder) throws Exception
 	{
 		// nothing to check by default
 	}

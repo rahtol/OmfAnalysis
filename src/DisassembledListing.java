@@ -15,12 +15,23 @@ public class DisassembledListing
 	String cppasmfname;
 	String modulename;
 	OmfFile omf;
+	long code_segment_start_address; // 0x0 for WCU_ATP, 0x400 for OBCU_ATP
 	
-	DisassembledListing(OmfFile omf)
+	DisassembledListing(OmfFile omf, long code_segment_start_address)
 	{
 		this.omf = omf;
+		this.code_segment_start_address = code_segment_start_address;  // TODO: can this value be calculated somehow from OMF
 	}
 	
+	private long readUInt32(ByteArrayInputStream stream)
+	{
+		long b0 = ((long) stream.read()) & 255;
+		long b1 = ((long) stream.read()) & 255;
+		long b2 = ((long) stream.read()) & 255;
+		long b3 = ((long) stream.read()) & 255;
+		return b0 + 256*b1 + 65536*b2 + 256*65536*b3;
+	}
+
 	static String hexdump (byte data[], int len)
 	{
 		String s="";
@@ -65,37 +76,46 @@ public class DisassembledListing
 				{
 					DebInfoLine l = ll.next();
 					i++;
-					byte linecode [] = omf.abstxt.getRange(l.start_address, l.end_address);
-					long virtualaddress = l.start_address;
+					byte linecode [] = omf.abstxt.getRange(l.start_address+code_segment_start_address, l.end_address+code_segment_start_address);
+					long virtualaddress = l.start_address+code_segment_start_address;
 					ByteArrayInputStream stream = new ByteArrayInputStream(linecode);
 					Vector<i386InstructionDecoder> instructions = new Vector<i386InstructionDecoder>();
+					boolean ok = false;
 					while (stream.available() > 0)
 					{
 						i386InstructionDecoder instruction = new i386InstructionDecoder(virtualaddress, 1, 1);   // assuming 32-bit operand- and address size here
 						instruction.decode(stream);
 						instructions.add(instruction);
 						virtualaddress += instruction.instructionData.size();
+						outf.write((i==1?"---- ":"++-- ") + String.format("%08x: ", instruction.virtualaddress) + hexdump(instruction.instructionData, 24) + instruction.toString() + "\n");
 						// TODO: REVIEW: the following if is very specialized code:
 						// if jmp cs:[eax*4+x] instruction where x=virtualaddress (i.e. the jmp-table is located immediately after the indirect jmp-instruction) then break
 						// it accounts for table data in the codesegment (switch-statement, jump-table)
-						if(instruction.isJmpOnTableUsingCS() && virtualaddress==instruction.displacement)
+						if(instruction.isJmpOnTableUsingCS() && virtualaddress==instruction.displacement+code_segment_start_address)
 						{
-							omf.check(stream.available() % 4 == 0, String.format("Size of jmp-table not divisible by for at module=%s, srcline=%d",l.module.toc.module_name, l.srcline));
-							break;
+//							omf.warn(stream.available() % 4 == 0, String.format("Size of jmp-table not divisible by four at module=%s, srcline=%d", l.module.toc.module_name, l.srcline));
+							long minJmpAddress = l.end_address+code_segment_start_address;
+							for (i386InstructionDecoder instruction2 : instructions)
+							{
+								// consider any jump-target address already parsed on this srcline as possible end address of the following jmp table
+								long addr = instruction2.jmpTargetAddress;
+								if (addr > virtualaddress && addr <= minJmpAddress)
+								{
+									minJmpAddress = addr;
+									ok = true;
+								}
+							}
+							while (virtualaddress+3 < minJmpAddress) // at least four bytes are available
+							{
+								long dd = readUInt32 (stream)+code_segment_start_address;
+								outf.write("DD-- " + String.format("%08x: %08x\n", virtualaddress, dd));
+								virtualaddress += 4;
+								if (dd < minJmpAddress)
+									minJmpAddress = dd;
+								ok |= dd == minJmpAddress;
+							}
+							omf.warn(ok, String.format("Jmp-table incosistent at module=%s, srcline=%d", l.module.toc.module_name, l.srcline));
 						}
-					}
-					for (i386InstructionDecoder instruction : instructions)
-					{
-						outf.write((i==1?"---- ":"++-- ") + String.format("%08x: ", instruction.virtualaddress) + hexdump(instruction.instructionData, 24) + instruction.toString() + "\n");
-					}
-					// finally print the jmp-table, if any (we already checked that its size is divisible by four)
-					while (stream.available() > 0)
-					{
-						byte dd[] = new byte[4]; 
-						for (int i1=3; i1>=0; i1--) dd[i1] = (byte)stream.read();
-						
-						outf.write("DD-- " + String.format("%08x: ", virtualaddress) + hexdump(dd, 24) + "\n");
-						virtualaddress += 4;
 					}
 				}
 			}

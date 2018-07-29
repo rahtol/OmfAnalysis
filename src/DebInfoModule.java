@@ -95,13 +95,16 @@ public class DebInfoModule
 	{
 		if (end_location_offs[Debug_loadable_text_section.idxSYMBOLS]>start_location_offs[Debug_loadable_text_section.idxSYMBOLS])
 		{
+			// calculating the length of the code image (=block_length) for the module
+			// approach via inspecting the outermost BLOCK record from the SYMBOLS section
+			
 			// non-empty SYMBOLS debseg for this module
 			long len = end_location_offs[Debug_loadable_text_section.idxSYMBOLS]-start_location_offs[Debug_loadable_text_section.idxSYMBOLS];
 			omf.check(len > 10, String.format("SYMBOLS for module %s unexpected short, len=%d", toc.module_name, len));
 			OmfFile.Pos pos = omf.new Pos((int) (start_location_offs[Debug_loadable_text_section.idxSYMBOLS]+toc_debtxt.location[Debug_loadable_text_section.idxSYMBOLS]));
 			long block_start_code = pos.readUInt8();
 			long block_start_address = pos.readUInt32();
-			block_length = pos.readUInt32();
+			block_length = pos.readUInt32()+1; // TODO: REVIEW: correction by one is very much a heuristic (see also procedure block size correction) 
 			String block_name = pos.readStr();
 			omf.check(len > 10 + block_name.length(), String.format("SYMBOLS for module %s unexpected short #2, len=%d %s", toc.module_name, len, block_name));
 			omf.check(block_start_code==0, String.format("Expecting block_start_code zero for module_name=%s, %d", toc.module_name, block_start_code));

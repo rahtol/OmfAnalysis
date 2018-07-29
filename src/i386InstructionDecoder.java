@@ -5,7 +5,7 @@ public class i386InstructionDecoder
 {
 	final long virtualaddress; // context information: virtual address where the instruction is located 
 	final int operandSizeDefault;  // context information: operandSize from segment selector
-	final int adressSizeDefault;  // context information: addressSize from segment selector
+	final int addressSizeDefault;  // context information: addressSize from segment selector
 	
 	Vector<Integer> instructionData;
 	
@@ -20,7 +20,7 @@ public class i386InstructionDecoder
 	int displacementSize;               // possible values: -1 (no displacement), 1 (8 bit), 2 (16 bit) or 4 (32 bit)
 	int immediateSize;
 
-	int adressSize;    // meaning: 0=16-bit 1=32-bit
+	int addressSize;    // meaning: 0=16-bit 1=32-bit
 	int operandSize;   // meaning: 0=16-bit 1=32-bit
 	i386OpcodeMap opcodeMap;
 	i386Instruction instruction;
@@ -30,6 +30,7 @@ public class i386InstructionDecoder
 	long displacement;
 	long immediate;
 	int segmentOverridePrefix;
+	long jmpTargetAddress; // target virtual address if instruction is a conditional/unconditional jump: _jb, _jw, _jv
 	
 	public final String regs8[] = {
 			"al",
@@ -139,7 +140,7 @@ public class i386InstructionDecoder
 	{
 		this.virtualaddress = virtualaddress;
 		this.operandSizeDefault = operandSizeDefault;
-		this.adressSizeDefault = adressSizeDefault;
+		this.addressSizeDefault = adressSizeDefault;
 		
 		resetState();
 	}
@@ -151,8 +152,8 @@ public class i386InstructionDecoder
 		adressSizePrefixPresent = 0;
 		operandSizePrefixPresent = 0;
 		segmentOverridePrefixPresent = 0;
-		adressSize = operandSizeDefault;
-		operandSize = 1; // defaulting to 32-bit
+		addressSize = addressSizeDefault;
+		operandSize = operandSizeDefault;
 		opcodeSize = 0;
 		opcodeMap = null;
 		modrmPresent = 0;
@@ -164,6 +165,7 @@ public class i386InstructionDecoder
 		immediateSize = -1;
 		immediate = 0;
 		segmentOverridePrefix = -1;
+		jmpTargetAddress = 0;
 	}
 	
 	public int getUInt8(InputStream is) throws Exception
@@ -234,7 +236,7 @@ public class i386InstructionDecoder
 		int rm = getRm(); 
 		int mod = getMod(); 
 		
-		if (adressSize==0)
+		if (addressSize==0)
 		{
 			// table 17-2: 16-Bit Addressing Forms with the the ModR/M byte applies
 			switch (mod) {
@@ -271,7 +273,7 @@ public class i386InstructionDecoder
 		if (requiresDisplacement==-1)             // -1 = displacement present, operandSize decides between 16-bit and 32-bit
 			displacementSize = (operandSize+1)*2; // 0->2, 1->4;
 		else if (requiresDisplacement==-2)        // -2 = displacement present, adressSize decides between 16-bit and 32-bit
-			displacementSize = (adressSize+1)*2;  // 0->2, 1->4;
+			displacementSize = (addressSize+1)*2;  // 0->2, 1->4;
 		else if (requiresDisplacement==1)
 			displacementSize = 1;
 		else if (requiresDisplacement==2)
@@ -295,7 +297,7 @@ public class i386InstructionDecoder
 		if (requiresImmediate==-1)
 			immediateSize = (operandSize+1)*2;
 		else if (requiresImmediate==-2)
-			immediateSize = (adressSize+1)*2;
+			immediateSize = (addressSize+1)*2;
 		else if (requiresImmediate==1)
 			immediateSize = 1;
 		else if (requiresImmediate==2)
@@ -328,7 +330,7 @@ public class i386InstructionDecoder
 		if (isAdressSizePrefix (b)) {
 			adressSizePrefixPresent = 1;
 			b = getUInt8(is);
-			adressSize = (adressSize + 1) % 2;  // toggle between 32-bit and 16-bit
+			addressSize = (addressSize + 1) % 2;  // toggle between 32-bit and 16-bit
 		}
 		if (isOperandSizePrefix (b)) {
 			operandSizePrefixPresent = 1;
@@ -443,7 +445,7 @@ public class i386InstructionDecoder
 			s = (opsize==1 ? regs8[rm] : (opsize==2 ? regs16[rm] : regs32 [rm]));
 			return s; // no brackets and no segment override prefix
 		}
-		else if (this.adressSize==0)
+		else if (this.addressSize==0)
 		{
 			// effective address according to table 17-2
 			

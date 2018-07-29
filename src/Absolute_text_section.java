@@ -29,6 +29,7 @@ public class Absolute_text_section // ABSTXT
 		
 		while (pos.pos < location + len)
 		{
+			n++;
 			long real_address = pos.readUInt32();
 			long length = pos.readUInt32();
 			omf.check(length > 0, String.format("ABSTXT: text_length zero at offs=%08x", pos.pos));

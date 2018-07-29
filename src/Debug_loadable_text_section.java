@@ -199,7 +199,7 @@ public class Debug_loadable_text_section
 			line++;
 			long line_address = pos.readUInt32() + module.start_address;
 			omf.check(line_address<module.end_address, String.format("LINES: address not in range for module=%s, pos=%08x, line_address=%08x, last_address=%08x", module.toc.module_name, pos.pos, line_address, module.end_address));
-			omf.warn(line_address>last_line_address, String.format("LINES: not strictly ascending for module=%s, pos=%08x, line_address=%08x, last_line_address=%08x", module.toc.module_name, pos.pos, line_address, last_line_address));
+//			omf.warn(line_address>last_line_address, String.format("LINES: not strictly ascending for module=%s, pos=%08x, line_address=%08x, last_line_address=%08x", module.toc.module_name, pos.pos, line_address, last_line_address));
 			last_line_address = line_address;
 			Map.Entry<Long,DebInfoProcedure> procentry = proceduresByAddress.floorEntry(line_address);
 			omf.check(procentry!=null, String.format("LINES: address not in range of a procedure for module=%s, pos=%08x, line_address=%08x", module.toc.module_name, pos.pos, line_address));

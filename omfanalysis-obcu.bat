@@ -1,0 +1,1 @@
+java -jar c:\bin\OmfAnalysis.jar Appl.omf 1024 ..\..\..\ANI\src ..\..\..\ATP_root\src ..\..\..\braking_curves\src ..\..\..\configuration\src ..\..\..\diagnosis\src ..\..\..\DOOR\src ..\..\..\locating\src ..\..\..\modes_level\src ..\..\..\movement_authority\src ..\..\..\supervisions\src ..\..\..\tdb_management\src ..\..\..\TIU\src ..\..\..\train_consist_manager\src

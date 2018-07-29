@@ -116,6 +116,8 @@ public class OmfFile extends BinaryFile
 			
 			check(chksum()==0, String.format("Checksum error in file %s!", path));
 			
+			check(partition_1.table_of_contents.DEBTXT_location!=0, "OMF does not contain any debug information!");
+			
 			if (partition_1.table_of_contents.ABSTXT_location < partition_1.table_of_contents.DEBTXT_location)
 			{
 				long lenabstxt = partition_1.table_of_contents.DEBTXT_location - partition_1.table_of_contents.ABSTXT_location;

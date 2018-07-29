@@ -83,21 +83,24 @@ public enum i386Operand
 	{
 		public String toString(i386InstructionDecoder decoder) throws Exception
 		{
-			return "$" + decoder.displStr(1, true) + String.format("  (%08x)", decoder.virtualaddress+decoder.instructionData.size()+decoder.get_displacement()); 
+			decoder.jmpTargetAddress = decoder.virtualaddress+decoder.instructionData.size()+decoder.get_displacement();
+			return "$" + decoder.displStr(1, true) + String.format("  (%08x)", decoder.jmpTargetAddress); 
 		}
 	},
 	_Jw(0,2,0)
 	{
 		public String toString(i386InstructionDecoder decoder) throws Exception
 		{
-			return "$" + decoder.displStr(2, true) + String.format("  (%08x)", decoder.virtualaddress+decoder.instructionData.size()+decoder.get_displacement()); 
+			decoder.jmpTargetAddress = decoder.virtualaddress+decoder.instructionData.size()+decoder.get_displacement();
+			return "$" + decoder.displStr(2, true) + String.format("  (%08x)", decoder.jmpTargetAddress); 
 		}
 	},
 	_Jv(0,-1,0)
 	{
 		public String toString(i386InstructionDecoder decoder) throws Exception
 		{
-			return "$" + decoder.displStr((decoder.adressSize==0 ? 2 : 4), true) + String.format("  (%08x)", decoder.virtualaddress+decoder.instructionData.size()+decoder.get_displacement()); 
+			decoder.jmpTargetAddress = decoder.virtualaddress+decoder.instructionData.size()+decoder.get_displacement();
+			return "$" + decoder.displStr((decoder.addressSize==0 ? 2 : 4), true) + String.format("  (%08x)", decoder.jmpTargetAddress); 
 		}
 	},
 	_M(1,0,0)  // mod != 3  memory reference only, exclusively used in "LEA _Gv, _M"
@@ -238,10 +241,10 @@ public enum i386Operand
 	},
 	_Ap(0,2,-1)  // immediate far address 32 or 48 bit depending on operand size
 	{
-		public String toString(i386InstructionDecoder instructionDecoder)
+		public String toString(i386InstructionDecoder decoder)
 		{
-			String fmt = (instructionDecoder.operandSize==2 ? "%04x:%04x" : "%04x:%08x");
-			return "far " + String.format(fmt, instructionDecoder.displacement, instructionDecoder.immediate);
+			String fmt = (decoder.operandSize==0 ? "%04x:%04x" : "%04x:%08x");
+			return "far " + String.format(fmt, decoder.displacement, decoder.immediate);
 		}
 	},
 	__Xb, // DS:SI pointer to byte, not displayed
@@ -249,8 +252,21 @@ public enum i386Operand
 	__Yb, // ES:DI pointer to byte, not displayed
 	__Yv, // ES:DI pointer to word or doubleword, not displayed
 	__Fv, // Flag register, not displayed
-	_Ob(0,-2,0),  // word or doubleword depending on adresssize used as displacement in MOV (A0-A3)
-	_Ov(0,-2,0),  // word or doubleword depending on adresssize used as displacement in MOV (A0-A3)
+	_Ob(0,-2,0)  // word or doubleword depending on adresssize used as displacement in MOV (A0-A3)
+	{
+		public String toString(i386InstructionDecoder decoder)
+		{
+			return String.format("byte ptr [%d]", decoder.displacement);
+		}
+	},
+	_Ov(0,-2,0)  // word or doubleword depending on adresssize used as displacement in MOV (A0-A3)
+	{
+		public String toString(i386InstructionDecoder decoder)
+		{
+			String fmt = (decoder.operandSize==0 ? "word ptr [%d]" : "dword ptr [%d]");
+			return String.format(fmt, decoder.displacement);
+		}
+	},
 	_AL,
 	_CL,
 	_DL,
